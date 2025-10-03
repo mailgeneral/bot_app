@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imperdellanta | Asistente Virtual</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        /* Base styles for the embeddable widget */
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: transparent; /* Makes the iframe background invisible */
+            overflow: hidden; /* Prevents scrollbars on the iframe itself */
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        /* ===================================================
+                  CHATBOT STYLES (FROM style.css)
+           =================================================== */
+
+        .chatbot-fab {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 60px;
+            height: 60px;
+            background-color: #1f771d;
+            color: white;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+
+        .chatbot-fab:hover {
+            background-color: #128C7E;
+            transform: scale(1.1);
+        }
+
+        .chat-window {
+            position: fixed;
+            bottom: 100px;
+            right: 25px;
+            width: 350px;
+            max-width: calc(100vw - 40px);
+            height: 500px;
+            max-height: calc(100vh - 120px);
+            background-color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 999;
+            transform: translateY(20px) scale(0.95);
+            opacity: 0;
+            visibility: hidden;
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease, visibility 0.3s;
+        }
+
+        .chat-window.open {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .chat-header {
+            background-color: #1f771d;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-weight: 600;
+        }
+
+        .chat-header h3 {
+            margin: 0;
+            color: white;
+            font-size: 1.1rem;
+        }
+
+        .close-chat-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #f3f3f3;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 12px;
+            max-width: 85%;
+        }
+
+        .message-content {
+            padding: 10px 15px;
+            border-radius: 18px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .message-content a {
+            color: #0056b3;
+            text-decoration: underline;
+        }
+
+        .message.user {
+            margin-left: auto;
+            flex-direction: row-reverse;
+        }
+
+        .message.user .message-content {
+            background-color: #25D366;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.ai .message-content {
+            background-color: #e9e9eb;
+            color: #333;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.loading .message-content {
+            padding: 10px 15px;
+        }
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #8e8e93;
+            margin: 0 1px;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+
+        .chat-input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            background-color: #fff;
+        }
+
+        #chat-input {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            padding: 10px 15px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #chat-input:focus {
+            border-color: #1f771d;
+        }
+
+        #send-btn {
+            background-color: #1f771d;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+
+        #send-btn:hover {
+            background-color: #128C7E;
+        }
+
+        #send-btn:disabled {
+            background-color: #a5d6a7;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 480px) {
+            .chat-window {
+                bottom: 0;
+                right: 0;
+                width: 100%;
+                height: 100%;
+                max-width: 100%;
+                max-height: 100%;
+                border-radius: 0;
+            }
+            .chatbot-fab {
+                bottom: 15px;
+                right: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Chatbot Container -->
+    <div id="chatbot-container"></div>
+
+    <!-- Carga del script de la aplicación -->
+    <script type="module">
+        // =================================================================================
+        // CHATBOT IMPLEMENTATION (SECURE PROXY VIA CLOUDFLARE WORKER)
+        // =================================================================================
+
+        // --- CONFIGURATION ---
+        // ---------------------
+        // URL de tu Cloudflare Worker. Esta es la dirección que actúa como intermediario seguro.
+        const WORKER_URL = "https://chat.corporativoimperdellanta.workers.dev";
+        // ---------------------
+
+        const chatbotContainer = document.getElementById('chatbot-container');
+
+        if (chatbotContainer) {
+            // --- STATE ---
+            let isChatOpen = false;
+            let isLoading = false;
+            // Store message history for context
+            let messages = [{
+                role: "model",
+                parts: [{ text: "¡Hola! Soy tu asistente virtual de Imperdellanta. ¿Cómo puedo ayudarte hoy con tus proyectos de impermeabilización?" }]
+            }];
+
+            // --- HELPERS ---
+            /**
+             * Finds URLs in a string and wraps them in an anchor tag.
+             * @param {string} text The text to parse.
+             * @returns {string} The text with HTML links.
+             */
+            const linkify = (text) => {
+                const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+                // Plain text is received, so no need to escape HTML before this.
+                return text.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+            };
+
+            // --- RENDER FUNCTION ---
+            const renderChatbot = () => {
+                // Filter out the initial system prompt for display
+                const displayMessages = messages.map(msg => ({
+                    sender: msg.role === 'user' ? 'user' : 'ai',
+                    text: msg.parts[0].text
+                }));
+
+                // Add loading indicator if needed
+                if (isLoading) {
+                    displayMessages.push({ sender: 'loading', text: '...' });
+                }
+                
+                chatbotContainer.innerHTML = `
+                    <button class="chatbot-fab" aria-label="Abrir chat de asistente virtual">
+                        <i class="fas fa-comment-dots"></i>
+                    </button>
+                    <div class="chat-window ${isChatOpen ? 'open' : ''}">
+                        <div class="chat-header">
+                            <h3>Asistente Virtual de Imperdellanta</h3>
+                            <button class="close-chat-btn" aria-label="Cerrar chat">&times;</button>
+                        </div>
+                        <div class="chat-messages">
+                            ${displayMessages.map(msg => {
+                                let processedText;
+                                if (msg.sender === 'loading') {
+                                    processedText = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
+                                } else {
+                                    // Process text for display using a placeholder strategy to prevent
+                                    // linkify from corrupting HTML generated from markdown.
+                                    const markdownLinks = {};
+                                    let placeholderId = 0;
+                                    
+                                    // 1. Handle Markdown for bold text: **text** -> <strong>text</strong>
+                                    let text = msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                                
+                                    // 2. Find Markdown links and replace them with placeholders
+                                    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (match, linkText, url) => {
+                                        const placeholder = `__MARKDOWN_LINK_${placeholderId++}__`;
+                                        markdownLinks[placeholder] = `<a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
+                                        return placeholder;
+                                    });
+                                
+                                    // 3. Linkify any remaining raw URLs on the text that now only contains placeholders
+                                    text = linkify(text);
+                                    
+                                    // 4. Restore the Markdown links from placeholders
+                                    for (const placeholder in markdownLinks) {
+                                        text = text.replace(placeholder, markdownLinks[placeholder]);
+                                    }
+                                    
+                                    // 5. Convert newlines to <br> for final display
+                                    processedText = text.replace(/\n/g, '<br>');
+                                }
+
+                                return `
+                                <div class="message ${msg.sender}">
+                                    <div class="message-content">
+                                        ${processedText}
+                                    </div>
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        <form class="chat-input-area">
+                            <input type="text" id="chat-input" placeholder="Escribe tu pregunta..." ${isLoading ? 'disabled' : ''} autocomplete="off">
+                            <button type="submit" id="send-btn" ${isLoading ? 'disabled' : ''}>
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                `;
+                
+                const messagesContainer = chatbotContainer.querySelector('.chat-messages');
+                if (messagesContainer) {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+
+                chatbotContainer.querySelector('.chatbot-fab')?.addEventListener('click', toggleChat);
+                chatbotContainer.querySelector('.close-chat-btn')?.addEventListener('click', toggleChat);
+                chatbotContainer.querySelector('.chat-input-area')?.addEventListener('submit', handleSendMessage);
+            };
+
+            // --- EVENT HANDLERS ---
+            const toggleChat = () => {
+                isChatOpen = !isChatOpen;
+                renderChatbot();
+                if(isChatOpen){
+                    setTimeout(() => chatbotContainer.querySelector('#chat-input')?.focus(), 300);
+                }
+            };
+
+            const handleSendMessage = async (e) => {
+                e.preventDefault();
+                const input = chatbotContainer.querySelector('#chat-input');
+                const userText = input.value.trim();
+
+                if (userText && !isLoading) {
+                    messages.push({ role: 'user', parts: [{ text: userText }] });
+                    isLoading = true;
+                    renderChatbot();
+                    input.value = '';
+
+                    try {
+                        const response = await fetch(WORKER_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ history: messages }),
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            const errorMessage = data.error || `Error del Worker: ${response.statusText}`;
+                            throw new Error(errorMessage);
+                        }
+                        
+                        const aiResponseText = data.reply;
+
+                        if (!aiResponseText) {
+                            throw new Error("Respuesta vacía del servidor.");
+                        }
+
+                        messages.push({ role: 'model', parts: [{ text: aiResponseText }] });
+
+                    } catch (error) {
+                        console.error("Error en el Chat:", error);
+                        messages.push({ role: 'model', parts: [{ text: `Error: ${error.message}` }] });
+                    } finally {
+                        isLoading = false;
+                        renderChatbot();
+                        const inputElement = chatbotContainer.querySelector('#chat-input');
+                        if(inputElement) inputElement.focus();
+                    }
+                }
+            };
+            
+            // Initial Render
+            renderChatbot();
+        }
+    </script>
+</body>
+</html>

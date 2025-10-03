@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -20,6 +21,8 @@
            =================================================== */
 
         .chatbot-fab {
+            /* This button is not needed when the page is a dedicated chat window */
+            display: none;
             position: fixed;
             bottom: 25px;
             right: 25px;
@@ -30,7 +33,6 @@
             border-radius: 50%;
             border: none;
             cursor: pointer;
-            display: flex;
             justify-content: center;
             align-items: center;
             font-size: 28px;
@@ -238,44 +240,34 @@
         // =================================================================================
 
         // --- CONFIGURATION ---
-        // ---------------------
-        // URL de tu Cloudflare Worker. Esta es la dirección que actúa como intermediario seguro.
         const WORKER_URL = "https://chat.corporativoimperdellanta.workers.dev";
+        const WIX_RETURN_URL = 'https://drino.short.gy/WEB-VENTAS-IMPER';
         // ---------------------
 
         const chatbotContainer = document.getElementById('chatbot-container');
 
         if (chatbotContainer) {
             // --- STATE ---
-            let isChatOpen = false;
+            let isChatOpen = true; // Chat is open by default on this page
             let isLoading = false;
-            // Store message history for context
             let messages = [{
                 role: "model",
                 parts: [{ text: "¡Hola! Soy tu asistente virtual de Imperdellanta. ¿Cómo puedo ayudarte hoy con tus proyectos de impermeabilización?" }]
             }];
 
             // --- HELPERS ---
-            /**
-             * Finds URLs in a string and wraps them in an anchor tag.
-             * @param {string} text The text to parse.
-             * @returns {string} The text with HTML links.
-             */
             const linkify = (text) => {
                 const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
-                // Plain text is received, so no need to escape HTML before this.
                 return text.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
             };
 
             // --- RENDER FUNCTION ---
             const renderChatbot = () => {
-                // Filter out the initial system prompt for display
                 const displayMessages = messages.map(msg => ({
                     sender: msg.role === 'user' ? 'user' : 'ai',
                     text: msg.parts[0].text
                 }));
 
-                // Add loading indicator if needed
                 if (isLoading) {
                     displayMessages.push({ sender: 'loading', text: '...' });
                 }
@@ -287,7 +279,7 @@
                     <div class="chat-window ${isChatOpen ? 'open' : ''}">
                         <div class="chat-header">
                             <h3>Asistente Virtual de Imperdellanta</h3>
-                            <button class="close-chat-btn" aria-label="Cerrar chat">&times;</button>
+                            <button class="close-chat-btn" aria-label="Volver al sitio principal">&times;</button>
                         </div>
                         <div class="chat-messages">
                             ${displayMessages.map(msg => {
@@ -295,33 +287,20 @@
                                 if (msg.sender === 'loading') {
                                     processedText = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
                                 } else {
-                                    // Process text for display using a placeholder strategy to prevent
-                                    // linkify from corrupting HTML generated from markdown.
                                     const markdownLinks = {};
                                     let placeholderId = 0;
-                                    
-                                    // 1. Handle Markdown for bold text: **text** -> <strong>text</strong>
                                     let text = msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                                
-                                    // 2. Find Markdown links and replace them with placeholders
                                     text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (match, linkText, url) => {
                                         const placeholder = `__MARKDOWN_LINK_${placeholderId++}__`;
                                         markdownLinks[placeholder] = `<a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
                                         return placeholder;
                                     });
-                                
-                                    // 3. Linkify any remaining raw URLs on the text that now only contains placeholders
                                     text = linkify(text);
-                                    
-                                    // 4. Restore the Markdown links from placeholders
                                     for (const placeholder in markdownLinks) {
                                         text = text.replace(placeholder, markdownLinks[placeholder]);
                                     }
-                                    
-                                    // 5. Convert newlines to <br> for final display
                                     processedText = text.replace(/\n/g, '<br>');
                                 }
-
                                 return `
                                 <div class="message ${msg.sender}">
                                     <div class="message-content">
@@ -345,20 +324,17 @@
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }
 
-                chatbotContainer.querySelector('.chatbot-fab')?.addEventListener('click', toggleChat);
-                chatbotContainer.querySelector('.close-chat-btn')?.addEventListener('click', toggleChat);
+                // Attach event listeners after rendering
+                const closeButton = chatbotContainer.querySelector('.close-chat-btn');
+                if (closeButton) {
+                    closeButton.addEventListener('click', () => {
+                        window.location.href = WIX_RETURN_URL;
+                    });
+                }
                 chatbotContainer.querySelector('.chat-input-area')?.addEventListener('submit', handleSendMessage);
             };
 
             // --- EVENT HANDLERS ---
-            const toggleChat = () => {
-                isChatOpen = !isChatOpen;
-                renderChatbot();
-                if(isChatOpen){
-                    setTimeout(() => chatbotContainer.querySelector('#chat-input')?.focus(), 300);
-                }
-            };
-
             const handleSendMessage = async (e) => {
                 e.preventDefault();
                 const input = chatbotContainer.querySelector('#chat-input');
@@ -406,6 +382,8 @@
             
             // Initial Render
             renderChatbot();
+            // Focus the input field since the chat is open by default
+            setTimeout(() => chatbotContainer.querySelector('#chat-input')?.focus(), 300);
         }
     </script>
 </body>

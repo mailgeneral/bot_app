@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -322,7 +323,11 @@
                 
                 const messagesContainer = chatbotContainer.querySelector('.chat-messages');
                 if (messagesContainer) {
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    const lastMessage = messagesContainer.querySelector('.message:last-child');
+                    if (lastMessage) {
+                        // Scroll to the TOP of the last message, allowing users to read long messages from the beginning.
+                        lastMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
                 }
 
                 // Attach event listeners after rendering

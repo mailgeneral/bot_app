@@ -456,37 +456,29 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ history: messages }),
                     });
-
-                    const data = await response.json();
-                    if (!response.ok) {
-                        // The worker now sends a specific error type for quota issues
-                        if (data.error === 'quota_exceeded') {
-                            // Create a custom error to be caught and handled specifically
-                            const quotaError = new Error("Quota exceeded");
-                            quotaError.isQuotaError = true;
-                            throw quotaError;
-                        }
-                        // For other errors from the worker
-                        const errorMessage = data.error || `Error del Worker: ${response.statusText}`;
-                        throw new Error(errorMessage);
-                    }
                     
-                    const aiResponseText = data.reply;
-                    if (!aiResponseText) {
-                        throw new Error("Respuesta vacía del servidor.");
-                    }
+                    const data = await response.json();
 
-                    messages.push({ role: 'model', parts: [{ text: aiResponseText }] });
+                    if (!response.ok) {
+                        if (data.error === 'quota_exceeded') {
+                            const friendlyMessage = "Nuestro asistente se ha tomado un descanso, intenta de nuevo más tarde o contacta por whatsapp al https://wa.me/5212228496995?text=Hola!%20Necesito%20asistencia%20con%20Imperdellanta%20codigo%20500";
+                            messages.push({ role: 'model', parts: [{ text: friendlyMessage }] });
+                        } else {
+                            messages.push({ role: 'model', parts: [{ text: `Lo siento, ocurrió un problema de comunicación. Por favor, intenta de nuevo más tarde.` }] });
+                            console.error("Error del Worker:", data.error || response.statusText);
+                        }
+                    } else {
+                        const aiResponseText = data.reply;
+                        if (!aiResponseText) {
+                            throw new Error("Respuesta vacía del servidor.");
+                        }
+                        messages.push({ role: 'model', parts: [{ text: aiResponseText }] });
+                    }
 
                 } catch (error) {
-                    console.error("Error en el Chat:", error);
-                    if (error.isQuotaError) {
-                        const friendlyMessage = "Nuestro asistente se ha tomado un descanso, intenta de nuevo más tarde o contacta por whatsapp al https://wa.me/5212228496995?text=Hola!%20Necesito%20asistencia%20con%20Imperdellanta%20codigo%20500";
-                        messages.push({ role: 'model', parts: [{ text: friendlyMessage }] });
-                    } else {
-                        // A slightly more user-friendly generic error
-                        messages.push({ role: 'model', parts: [{ text: `Lo siento, ocurrió un problema de comunicación. Por favor, intenta de nuevo más tarde.` }] });
-                    }
+                    console.error("Error de Red o de análisis JSON:", error);
+                    const networkErrorMessage = "Lo siento, ocurrió un problema de comunicación. Por favor, revisa tu conexión a internet e intenta de nuevo.";
+                    messages.push({ role: 'model', parts: [{ text: networkErrorMessage }] });
                 } finally {
                     isLoading = false;
                     renderChatbot();

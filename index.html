@@ -1,7 +1,3 @@
-
-
-
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -170,6 +166,58 @@
             40% { transform: scale(1.0); }
         }
 
+        /* --- Interactive Action Buttons --- */
+        .message-actions {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .btn-chat-action {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            border: 2px solid transparent;
+            transition: all 0.2s ease-in-out;
+            text-align: center;
+        }
+
+        .btn-chat-action.secondary {
+            background-color: transparent;
+            border-color: #1f771d;
+            color: #1f771d;
+        }
+        .btn-chat-action.secondary:hover {
+            background-color: rgba(31, 119, 29, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .btn-chat-action.resource {
+            background-color: #1f771d;
+            color: white;
+        }
+        .btn-chat-action.resource:hover {
+            background-color: #128C7E;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .btn-chat-action.primary {
+            background-color: #25D366;
+            color: white;
+            font-weight: bold;
+        }
+        .btn-chat-action.primary:hover {
+            background-color: #128C7E;
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+        }
+
         .chat-input-area {
             display: flex;
             padding: 10px;
@@ -264,6 +312,61 @@
                 const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
                 return text.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
             };
+            
+            const processMessageContent = (rawText) => {
+                let text = rawText;
+                const buttonRegex = /\[(action_button|link_button_resource|link_button_primary):([^\]]+?)\](?:\(([^)]+?)\))?/g;
+                const buttons = [];
+                let match;
+
+                while ((match = buttonRegex.exec(rawText)) !== null) {
+                    buttons.push({
+                        type: match[1],
+                        text: match[2],
+                        url: match[3] || null,
+                        fullMatch: match[0]
+                    });
+                }
+
+                buttons.forEach(button => {
+                    text = text.replace(button.fullMatch, '');
+                });
+
+                let processedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                const markdownLinks = {};
+                let placeholderId = 0;
+                processedText = processedText.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (match, linkText, url) => {
+                    const placeholder = `__MARKDOWN_LINK_${placeholderId++}__`;
+                    markdownLinks[placeholder] = `<a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
+                    return placeholder;
+                });
+                processedText = linkify(processedText);
+                for (const placeholder in markdownLinks) {
+                    processedText = processedText.replace(placeholder, markdownLinks[placeholder]);
+                }
+                
+                const mainContent = processedText.replace(/\n/g, '<br>').trim();
+
+                let actionsHTML = '';
+                if (buttons.length > 0) {
+                    const buttonsHTML = buttons.map(btn => {
+                        const boldedText = btn.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        switch (btn.type) {
+                            case 'action_button':
+                                return `<button class="btn-chat-action secondary">${boldedText}</button>`;
+                            case 'link_button_resource':
+                                return `<a href="${btn.url}" target="_blank" rel="noopener noreferrer" class="btn-chat-action resource">${boldedText}</a>`;
+                            case 'link_button_primary':
+                                return `<a href="${btn.url}" target="_blank" rel="noopener noreferrer" class="btn-chat-action primary">${boldedText}</a>`;
+                            default:
+                                return '';
+                        }
+                    }).join('');
+                    actionsHTML = `<div class="message-actions">${buttonsHTML}</div>`;
+                }
+
+                return { mainContent, actionsHTML };
+            };
 
             // --- RENDER FUNCTION ---
             const renderChatbot = () => {
@@ -287,28 +390,17 @@
                         </div>
                         <div class="chat-messages">
                             ${displayMessages.map(msg => {
-                                let processedText;
+                                let contentHTML;
                                 if (msg.sender === 'loading') {
-                                    processedText = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
+                                    contentHTML = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
                                 } else {
-                                    const markdownLinks = {};
-                                    let placeholderId = 0;
-                                    let text = msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                                    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (match, linkText, url) => {
-                                        const placeholder = `__MARKDOWN_LINK_${placeholderId++}__`;
-                                        markdownLinks[placeholder] = `<a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`;
-                                        return placeholder;
-                                    });
-                                    text = linkify(text);
-                                    for (const placeholder in markdownLinks) {
-                                        text = text.replace(placeholder, markdownLinks[placeholder]);
-                                    }
-                                    processedText = text.replace(/\n/g, '<br>');
+                                    const { mainContent, actionsHTML } = processMessageContent(msg.text);
+                                    contentHTML = `${mainContent}${actionsHTML}`;
                                 }
                                 return `
                                 <div class="message ${msg.sender}">
                                     <div class="message-content">
-                                        ${processedText}
+                                        ${contentHTML}
                                     </div>
                                 </div>
                                 `;
@@ -327,13 +419,17 @@
                 if (messagesContainer) {
                     const lastMessage = messagesContainer.querySelector('.message:last-child');
                     if (lastMessage) {
-                        // Scroll smoothly to the top of the new message.
-                        // Using scrollTo with offsetTop is more reliable than scrollIntoView in some cases.
                         messagesContainer.scrollTo({
                             top: lastMessage.offsetTop,
                             behavior: 'smooth'
                         });
                     }
+                     messagesContainer.addEventListener('click', (e) => {
+                        if (e.target.matches('button.btn-chat-action.secondary')) {
+                            const buttonText = e.target.textContent;
+                            sendMessage(buttonText);
+                        }
+                    });
                 }
 
                 // Attach event listeners after rendering
@@ -343,67 +439,66 @@
                         window.location.href = WIX_RETURN_URL;
                     });
                 }
-                chatbotContainer.querySelector('.chat-input-area')?.addEventListener('submit', handleSendMessage);
+                chatbotContainer.querySelector('.chat-input-area')?.addEventListener('submit', handleFormSubmit);
             };
 
-            // --- EVENT HANDLERS ---
-            const handleSendMessage = async (e) => {
-                e.preventDefault();
-                const input = chatbotContainer.querySelector('#chat-input');
-                const userText = input.value.trim();
+            // --- CORE LOGIC ---
+            const sendMessage = async (userText) => {
+                if (!userText || isLoading) return;
 
-                if (userText && !isLoading) {
-                    messages.push({ role: 'user', parts: [{ text: userText }] });
-                    isLoading = true;
+                messages.push({ role: 'user', parts: [{ text: userText }] });
+                isLoading = true;
+                renderChatbot();
+
+                try {
+                    const response = await fetch(WORKER_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ history: messages }),
+                    });
+
+                    const data = await response.json();
+                    if (!response.ok) {
+                        const errorMessage = data.error || `Error del Worker: ${response.statusText}`;
+                        throw new Error(errorMessage);
+                    }
+                    
+                    const aiResponseText = data.reply;
+                    if (!aiResponseText) {
+                        throw new Error("Respuesta vacía del servidor.");
+                    }
+
+                    messages.push({ role: 'model', parts: [{ text: aiResponseText }] });
+
+                } catch (error) {
+                    console.error("Error en el Chat:", error);
+                    messages.push({ role: 'model', parts: [{ text: `Error: ${error.message}` }] });
+                } finally {
+                    isLoading = false;
                     renderChatbot();
-                    // input.value is cleared on re-render.
-
-                    try {
-                        const response = await fetch(WORKER_URL, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ history: messages }),
-                        });
-
-                        const data = await response.json();
-
-                        if (!response.ok) {
-                            const errorMessage = data.error || `Error del Worker: ${response.statusText}`;
-                            throw new Error(errorMessage);
-                        }
-                        
-                        const aiResponseText = data.reply;
-
-                        if (!aiResponseText) {
-                            throw new Error("Respuesta vacía del servidor.");
-                        }
-
-                        messages.push({ role: 'model', parts: [{ text: aiResponseText }] });
-
-                    } catch (error) {
-                        console.error("Error en el Chat:", error);
-                        messages.push({ role: 'model', parts: [{ text: `Error: ${error.message}` }] });
-                    } finally {
-                        isLoading = false;
-                        renderChatbot();
-                        
-                        // Manage focus based on device type
-                        const finalInput = chatbotContainer.querySelector('#chat-input');
-                        if (finalInput) {
-                            const isMobile = window.innerWidth <= 768;
-                            if (isMobile) {
-                                finalInput.blur(); // On mobile, hide keyboard to show the response.
-                            } else {
-                                finalInput.focus(); // On desktop, keep focus for quick follow-up.
-                            }
+                    
+                    const finalInput = chatbotContainer.querySelector('#chat-input');
+                    if (finalInput) {
+                        const isMobile = window.innerWidth <= 768;
+                        if (isMobile) {
+                            finalInput.blur();
+                        } else {
+                            finalInput.focus();
                         }
                     }
                 }
             };
             
+            // --- EVENT HANDLERS ---
+            const handleFormSubmit = async (e) => {
+                e.preventDefault();
+                const input = chatbotContainer.querySelector('#chat-input');
+                const userText = input.value.trim();
+                sendMessage(userText);
+            };
+            
             // Initial Render
             renderChatbot();
-            // Focus the input field since the chat is open by default
             setTimeout(() => chatbotContainer.querySelector('#chat-input')?.focus(), 300);
         }
     </script>

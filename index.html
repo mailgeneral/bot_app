@@ -5,7 +5,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-T">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Imperdellanta | Asistente Virtual</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -109,6 +109,7 @@
             padding: 15px;
             overflow-y: auto;
             background-color: #f3f3f3;
+            position: relative; /* Establishes a positioning context for offsetTop calculation */
         }
 
         .message {
@@ -326,8 +327,12 @@
                 if (messagesContainer) {
                     const lastMessage = messagesContainer.querySelector('.message:last-child');
                     if (lastMessage) {
-                        // Scroll to the TOP of the last message, allowing users to read long messages from the beginning.
-                        lastMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        // Scroll smoothly to the top of the new message.
+                        // Using scrollTo with offsetTop is more reliable than scrollIntoView in some cases.
+                        messagesContainer.scrollTo({
+                            top: lastMessage.offsetTop,
+                            behavior: 'smooth'
+                        });
                     }
                 }
 
@@ -351,7 +356,7 @@
                     messages.push({ role: 'user', parts: [{ text: userText }] });
                     isLoading = true;
                     renderChatbot();
-                    input.value = '';
+                    // input.value is cleared on re-render.
 
                     try {
                         const response = await fetch(WORKER_URL, {
@@ -381,6 +386,17 @@
                     } finally {
                         isLoading = false;
                         renderChatbot();
+                        
+                        // Manage focus based on device type
+                        const finalInput = chatbotContainer.querySelector('#chat-input');
+                        if (finalInput) {
+                            const isMobile = window.innerWidth <= 768;
+                            if (isMobile) {
+                                finalInput.blur(); // On mobile, hide keyboard to show the response.
+                            } else {
+                                finalInput.focus(); // On desktop, keep focus for quick follow-up.
+                            }
+                        }
                     }
                 }
             };

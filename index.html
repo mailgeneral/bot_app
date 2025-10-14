@@ -1,77 +1,78 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <!--
-      GUÍA DEL DESARROLLADOR (Pedriño)
-      Este es el archivo del chatbot "embebido". Está diseñado para ser
-      insertado en otras páginas (como Wix) usando un <iframe>.
-      A continuación, te dejo comentarios para que puedas entender y modificarlo.
-    -->
-    <meta charset="UTF-8"> <!-- Corrección de Charset a UTF-8 -->
+    <meta charset="UTF-T">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Imperdellanta | Asistente Virtual</title>
-    <!-- Carga de la librería de íconos Font Awesome, necesaria para los íconos del chat. -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
-        /* ===================================================
-           ESTILOS BASE
-           Hacemos que el fondo sea transparente para que se integre
-           perfectamente en la página donde se incruste.
-           =================================================== */
+        /* Base styles for the embeddable widget */
         html, body {
             margin: 0;
             padding: 0;
-            background: transparent; /* El fondo transparente es clave para el modo embebido. */
-            overflow: hidden; /* Evita barras de scroll en el iframe. */
+            background: transparent; /* Makes the iframe background invisible */
+            overflow: hidden; /* Prevents scrollbars on the iframe itself */
             font-family: 'Segoe UI', Arial, sans-serif;
         }
 
         /* ===================================================
-           ESTILOS DEL CHATBOT
-           Estos estilos son una réplica de los del sitio principal (style.css)
-           para asegurar que el chat se vea idéntico.
+                  CHATBOT STYLES (FROM style.css)
            =================================================== */
 
-        /* El botón flotante (FAB) no se necesita aquí porque el chat siempre está visible. */
         .chatbot-fab {
+            /* This button is not needed when the page is a dedicated chat window */
             display: none;
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            width: 60px;
+            height: 60px;
+            background-color: #1f771d;
+            color: white;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            transition: transform 0.3s ease, background-color 0.3s ease;
         }
 
-        /* La ventana del chat. La hacemos fija y que ocupe toda la pantalla del iframe. */
+        .chatbot-fab:hover {
+            background-color: #128C7E;
+            transform: scale(1.1);
+        }
+
         .chat-window {
-            /* Posicionamiento fijo para ocupar todo el espacio disponible. */
             position: fixed;
-            /* Modificado para ocupar el 100% del viewport del iframe. */
-            top: 0;
-            left: 0;
-            bottom: 0;
-            right: 0;
-            width: 100%;
-            height: 100%;
-            /* Se eliminan los máximos y bordes redondeados para un aspecto de pantalla completa. */
-            max-width: 100%;
-            max-height: 100%;
-            border-radius: 0;
-            /* Se mantienen los estilos visuales. */
+            bottom: 100px;
+            right: 25px;
+            width: 350px;
+            max-width: calc(100vw - 40px);
+            height: 500px;
+            max-height: calc(100vh - 120px);
             background-color: #fff;
+            border-radius: 15px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
             display: flex;
             flex-direction: column;
             overflow: hidden;
             z-index: 999;
-            /* La animación de entrada se mantiene, pero se ajusta para que siempre esté visible. */
+            transform: translateY(20px) scale(0.95);
+            opacity: 0;
+            visibility: hidden;
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease, visibility 0.3s;
+        }
+
+        .chat-window.open {
             transform: translateY(0) scale(1);
             opacity: 1;
             visibility: visible;
-            transition: none; /* No se necesita transición de entrada. */
-        }
-        
-        /* En el modo embebido, la ventana siempre está 'abierta'. */
-        .chat-window.open {
-            z-index: 1001;
+            z-index: 1001; /* FIX: Puts open window above the FAB */
         }
 
-        /* Cabecera del chat. */
         .chat-header {
             background-color: #1f771d;
             color: white;
@@ -89,7 +90,6 @@
             font-size: 1.1rem;
         }
 
-        /* Botón de cerrar. */
         .close-chat-btn {
             background: none;
             border: none;
@@ -100,29 +100,26 @@
             padding: 0;
         }
 
-        /* Área de mensajes. */
         .chat-messages {
-            flex-grow: 1; /* Ocupa todo el espacio vertical disponible. */
+            flex-grow: 1;
             padding: 15px;
-            overflow-y: auto; /* Permite scroll si los mensajes exceden la altura. */
+            overflow-y: auto;
             background-color: #f3f3f3;
-            position: relative;
+            position: relative; /* Establishes a positioning context for offsetTop calculation */
         }
 
-        /* Estructura de un mensaje individual. */
         .message {
             display: flex;
             margin-bottom: 12px;
             max-width: 85%;
         }
 
-        /* Contenido de la burbuja del mensaje. */
         .message-content {
             padding: 10px 15px;
             border-radius: 18px;
             font-size: 0.95rem;
             line-height: 1.4;
-            word-wrap: break-word; /* Evita que textos largos rompan el diseño. */
+            word-wrap: break-word;
         }
 
         .message-content a {
@@ -130,7 +127,6 @@
             text-decoration: underline;
         }
 
-        /* Mensaje del usuario (alineado a la derecha). */
         .message.user {
             margin-left: auto;
             flex-direction: row-reverse;
@@ -142,14 +138,12 @@
             border-bottom-right-radius: 4px;
         }
 
-        /* Mensaje del asistente (alineado a la izquierda). */
         .message.ai .message-content {
             background-color: #e9e9eb;
             color: #333;
             border-bottom-left-radius: 4px;
         }
 
-        /* Indicador de "escribiendo..." */
         .message.loading .message-content {
             padding: 10px 15px;
         }
@@ -172,7 +166,7 @@
             40% { transform: scale(1.0); }
         }
 
-        /* Botones de acción dentro de un mensaje. */
+        /* --- Interactive Action Buttons --- */
         .message-actions {
             margin-top: 12px;
             display: flex;
@@ -224,7 +218,6 @@
             box-shadow: 0 3px 10px rgba(0,0,0,0.15);
         }
 
-        /* Área de entrada de texto. */
         .chat-input-area {
             display: flex;
             padding: 10px;
@@ -246,7 +239,6 @@
             border-color: #1f771d;
         }
 
-        /* Botón de enviar. */
         #send-btn {
             background-color: #1f771d;
             color: white;
@@ -272,68 +264,74 @@
             cursor: not-allowed;
         }
 
-        /* En el modo embebido, no se necesita responsive, ya que el iframe define el tamaño. */
+        @media (max-width: 480px) {
+            .chat-window {
+                bottom: 0;
+                right: 0;
+                width: 100%;
+                height: 100%;
+                max-width: 100%;
+                max-height: 100%;
+                border-radius: 0;
+            }
+            .chatbot-fab {
+                bottom: 15px;
+                right: 15px;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- Contenedor donde se renderizará el chat. -->
+    <!-- Chatbot Container -->
     <div id="chatbot-container"></div>
 
-    <!-- El script principal se incrusta directamente aquí como un módulo. -->
+    <!-- Carga del script de la aplicación -->
     <script type="module">
         // =================================================================================
-        // LÓGICA DEL CHATBOT (VERSIÓN EMBEBIDA)
+        // CHATBOT IMPLEMENTATION (SECURE PROXY VIA CLOUDFLARE WORKER)
         // =================================================================================
 
-        // --- CONFIGURACIÓN ESPECÍFICA PARA EL MODO EMBEBIDO ---
-        // URL del Cloudflare Worker (el backend del chat).
+        // --- CONFIGURATION ---
         const WORKER_URL = "https://chat.corporativoimperdellanta.workers.dev";
-        // URL a la que se redirigirá al usuario si hace clic en el botón de cerrar.
         const WIX_RETURN_URL = 'https://drino.short.gy/WEB-VENTAS-IMPER';
-        // Clave única para guardar el historial del chat en el localStorage del navegador.
-        // Es diferente a la del sitio principal para evitar que las conversaciones se mezclen.
         const CHAT_STATE_KEY = 'imperdellanta_chat_embed_state';
         // ---------------------
 
         const chatbotContainer = document.getElementById('chatbot-container');
 
         if (chatbotContainer) {
-            // --- MANEJO DEL ESTADO DE LA CONVERSACIÓN ---
+            // --- STATE MANAGEMENT ---
             const defaultState = {
-                isChatOpen: true, // En esta versión, el chat siempre está abierto.
+                isChatOpen: true, // Always open for the embed page
                 messages: [{
                     role: "model",
                     parts: [{ text: "¡Hola! Soy **Alex**, tu asistente virtual de Imperdellanta. Para darte una atención personalizada, **¿con quién tengo el gusto?**" }]
                 }]
             };
 
-            // Función para cargar el historial de chat desde el almacenamiento local del navegador.
             const loadChatState = () => {
                 try {
                     const savedState = localStorage.getItem(CHAT_STATE_KEY);
                     if (savedState) {
                         const parsedState = JSON.parse(savedState);
-                        // Verificamos que los datos guardados sean válidos.
                         if (parsedState.messages && Array.isArray(parsedState.messages)) {
-                             // Forzamos que el chat esté abierto pero mantenemos los mensajes guardados.
+                             // Force isChatOpen to true for this embed view, but keep messages
                             return { ...defaultState, messages: parsedState.messages };
                         }
                     }
                 } catch (error) {
                     console.error("Error al cargar el estado del chat desde localStorage:", error);
-                    localStorage.removeItem(CHAT_STATE_KEY); // Limpiamos datos corruptos.
+                    localStorage.removeItem(CHAT_STATE_KEY);
                 }
-                return { ...defaultState }; // Si no hay nada guardado, empezamos de cero.
+                return { ...defaultState };
             };
 
-            // Inicializamos las variables con el estado cargado.
             let { isChatOpen, messages } = loadChatState();
-            let isLoading = false; // Indica si estamos esperando una respuesta del bot.
+            let isLoading = false;
 
-            // Función para guardar el estado actual del chat.
             const saveChatState = () => {
                 try {
-                    // Siempre guardamos el chat como "abierto" en esta versión.
+                    // Always save isChatOpen as true for the embed context
                     const stateToSave = { isChatOpen: true, messages };
                     localStorage.setItem(CHAT_STATE_KEY, JSON.stringify(stateToSave));
                 } catch (error) {
@@ -341,22 +339,18 @@
                 }
             };
 
-            // --- FUNCIONES AUXILIARES ---
-            // Convierte URLs en texto a enlaces HTML clicables.
+            // --- HELPERS ---
             const linkify = (text) => {
                 const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
                 return text.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
             };
             
-            // Procesa el texto del bot para convertir markdown y códigos de botones en HTML.
             const processMessageContent = (rawText) => {
                 let text = rawText;
-                // Expresión regular para encontrar marcadores de botones como [action_button:Texto].
                 const buttonRegex = /\[(action_button|link_button_resource|link_button_primary):([^\]]+?)\](?:\(([^)]+?)\))?/g;
                 const buttons = [];
                 let match;
 
-                // Extraemos todos los botones del texto.
                 while ((match = buttonRegex.exec(rawText)) !== null) {
                     buttons.push({
                         type: match[1],
@@ -366,15 +360,11 @@
                     });
                 }
 
-                // Limpiamos los marcadores de botones del texto principal.
                 buttons.forEach(button => {
                     text = text.replace(button.fullMatch, '');
                 });
 
-                // Convertimos markdown de negritas (**texto**) a etiquetas <strong>.
                 let processedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                
-                // Convertimos enlaces markdown y URLs crudas a etiquetas <a>.
                 const markdownLinks = {};
                 let placeholderId = 0;
                 processedText = processedText.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (match, linkText, url) => {
@@ -387,10 +377,8 @@
                     processedText = processedText.replace(placeholder, markdownLinks[placeholder]);
                 }
                 
-                // Convertimos saltos de línea a <br> para el HTML final.
                 const mainContent = processedText.replace(/\n/g, '<br>').trim();
 
-                // Generamos el HTML para los botones de acción.
                 let actionsHTML = '';
                 if (buttons.length > 0) {
                     const buttonsHTML = buttons.map(btn => {
@@ -412,22 +400,22 @@
                 return { mainContent, actionsHTML };
             };
 
-            // --- FUNCIÓN DE RENDERIZADO ---
-            // Dibuja la interfaz del chat en la pantalla. Se llama cada vez que hay un cambio.
+            // --- RENDER FUNCTION ---
             const renderChatbot = () => {
                 const displayMessages = messages.map(msg => ({
                     sender: msg.role === 'user' ? 'user' : 'ai',
                     text: msg.parts[0].text
                 }));
 
-                // Si estamos esperando respuesta, añadimos el indicador de "escribiendo...".
                 if (isLoading) {
                     displayMessages.push({ sender: 'loading', text: '...' });
                 }
                 
-                // Construimos el HTML completo del chatbot.
                 chatbotContainer.innerHTML = `
-                    <div class="chat-window open">
+                    <button class="chatbot-fab" aria-label="Abrir chat de asistente virtual">
+                        <i class="fas fa-comment-dots"></i>
+                    </button>
+                    <div class="chat-window ${isChatOpen ? 'open' : ''}">
                         <div class="chat-header">
                             <h3>Alex | Asistente Imperdellanta</h3>
                             <button class="close-chat-btn" aria-label="Volver al sitio principal">&times;</button>
@@ -461,12 +449,13 @@
                 
                 const messagesContainer = chatbotContainer.querySelector('.chat-messages');
                 if (messagesContainer) {
-                    // Hacemos scroll automático al último mensaje.
                     const lastMessage = messagesContainer.querySelector('.message:last-child');
                     if (lastMessage) {
-                        messagesContainer.scrollTo({ top: lastMessage.offsetTop, behavior: 'smooth' });
+                        messagesContainer.scrollTo({
+                            top: lastMessage.offsetTop,
+                            behavior: 'smooth'
+                        });
                     }
-                    // Añadimos el listener para los botones de acción.
                      messagesContainer.addEventListener('click', (e) => {
                         if (e.target.matches('button.btn-chat-action.secondary')) {
                             const buttonText = e.target.textContent;
@@ -475,30 +464,26 @@
                     });
                 }
 
-                // Asignamos los eventos a los elementos recién creados.
+                // Attach event listeners after rendering
                 const closeButton = chatbotContainer.querySelector('.close-chat-btn');
                 if (closeButton) {
                     closeButton.addEventListener('click', () => {
-                        // Al cerrar, redirige la página principal (el contenedor del iframe) a la web de ventas.
                         window.top.location.href = WIX_RETURN_URL;
                     });
                 }
                 chatbotContainer.querySelector('.chat-input-area')?.addEventListener('submit', handleFormSubmit);
             };
 
-            // --- LÓGICA PRINCIPAL ---
-            // Envía el mensaje del usuario al backend y maneja la respuesta.
+            // --- CORE LOGIC ---
             const sendMessage = async (userText) => {
                 if (!userText || isLoading) return;
 
-                // Añadimos el mensaje del usuario a la conversación.
                 messages.push({ role: 'user', parts: [{ text: userText }] });
                 saveChatState();
                 isLoading = true;
-                renderChatbot(); // Re-dibujamos para mostrar el mensaje y el "escribiendo...".
+                renderChatbot();
 
                 try {
-                    // Hacemos la llamada al Cloudflare Worker.
                     const response = await fetch(WORKER_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -507,7 +492,6 @@
                     
                     const data = await response.json();
 
-                    // Manejamos posibles errores (ej. cuota excedida).
                     if (!response.ok) {
                         if (data.error === 'quota_exceeded') {
                             const friendlyMessage = "Nuestro asistente se ha tomado un descanso, intenta de nuevo más tarde o contacta por whatsapp al https://wa.me/5212228496995?text=Hola!%20Necesito%20asistencia%20con%20Imperdellanta%20codigo%20500";
@@ -516,7 +500,7 @@
                             messages.push({ role: 'model', parts: [{ text: `Lo siento, ocurrió un problema de comunicación. Por favor, intenta de nuevo más tarde.` }] });
                             console.error("Error del Worker:", data.error || response.statusText);
                         }
-                    } else { // Si todo fue bien, añadimos la respuesta del bot.
+                    } else {
                         const aiResponseText = data.reply;
                         if (!aiResponseText) {
                             throw new Error("Respuesta vacía del servidor.");
@@ -524,17 +508,15 @@
                         messages.push({ role: 'model', parts: [{ text: aiResponseText }] });
                     }
 
-                } catch (error) { // Manejamos errores de red.
+                } catch (error) {
                     console.error("Error de Red o de análisis JSON:", error);
                     const networkErrorMessage = "Lo siento, ocurrió un problema de comunicación. Por favor, revisa tu conexión a internet e intenta de nuevo.";
                     messages.push({ role: 'model', parts: [{ text: networkErrorMessage }] });
                 } finally {
-                    // Se ejecuta siempre, haya habido error o no.
                     isLoading = false;
-                    saveChatState(); // Guardamos la conversación actualizada.
-                    renderChatbot(); // Re-dibujamos para mostrar la respuesta final.
+                    saveChatState();
+                    renderChatbot();
                     
-                    // Ponemos el foco de nuevo en el campo de texto para facilitar la escritura.
                     const finalInput = chatbotContainer.querySelector('#chat-input');
                     if (finalInput) {
                         const isMobile = window.innerWidth <= 768;
@@ -547,19 +529,16 @@
                 }
             };
             
-            // --- MANEJADORES DE EVENTOS ---
-            // Se activa al enviar el formulario (presionar Enter o clic en el botón).
+            // --- EVENT HANDLERS ---
             const handleFormSubmit = async (e) => {
                 e.preventDefault();
                 const input = chatbotContainer.querySelector('#chat-input');
                 const userText = input.value.trim();
                 sendMessage(userText);
-                // El input se limpia automáticamente en el siguiente re-renderizado.
             };
             
-            // --- INICIO DE LA APLICACIÓN ---
-            renderChatbot(); // Dibujamos el chat por primera vez.
-            // Ponemos el foco en el input para que el usuario pueda empezar a escribir.
+            // Initial Render
+            renderChatbot();
             setTimeout(() => chatbotContainer.querySelector('#chat-input')?.focus(), 300);
         }
     </script>
